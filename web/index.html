@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>票据预处理与 OCR 归档系统</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <!-- 登录页 -->
+  <div id="login-page" class="login-wrap" style="display:none">
+    <div class="login-box">
+      <h2>票据归档系统登录</h2>
+      <label>用户名</label>
+      <input id="login-user" type="text" autocomplete="username" />
+      <label>密码</label>
+      <input id="login-pass" type="password" autocomplete="current-password" />
+      <button onclick="App.login()">登录</button>
+      <div id="login-error" class="login-error"></div>
+    </div>
+  </div>
+
+  <!-- 主界面 -->
+  <div id="app" style="display:none">
+    <div class="topbar">
+      <div class="logo">票据归档系统</div>
+      <nav>
+        <a data-page="upload" class="active" onclick="App.nav('upload')">上传</a>
+        <a data-page="tasks" onclick="App.nav('tasks')">任务列表</a>
+        <a data-page="invoices" onclick="App.nav('invoices')">识别结果</a>
+        <a data-page="duplicates" onclick="App.nav('duplicates')">重复票据</a>
+        <a data-page="download" onclick="App.nav('download')">结果下载</a>
+        <a data-page="ledger" onclick="App.nav('ledger')">票据查重</a>
+      </nav>
+      <div class="right">
+        <button onclick="App.logout()">退出登录</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <!-- 上传页 -->
+      <div id="page-upload" class="page active">
+        <div class="card">
+          <h3>上传票据文件</h3>
+          <div class="dropzone" id="dropzone">
+            点击选择或拖拽文件到此处（支持 jpg/jpeg/png/bmp/tiff/webp/pdf，以及打包多张票据的 zip / rar 压缩包）
+            <input type="file" id="file-input" multiple accept=".jpg,.jpeg,.png,.bmp,.tif,.tiff,.webp,.pdf,.zip,.rar" />
+          </div>
+          <div class="file-list" id="file-list"></div>
+          <div style="margin-top:16px">
+            <button class="btn" id="btn-upload" onclick="App.doUpload()" disabled>开始上传并处理</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 任务列表页 -->
+      <div id="page-tasks" class="page">
+        <div class="card">
+          <h3>任务列表
+            <button class="btn small gray" style="float:right" onclick="App.loadTasks()">刷新</button>
+          </h3>
+          <table>
+            <thead><tr>
+              <th>任务 ID</th><th>状态</th><th>进度</th><th>总文件</th>
+              <th>成功</th><th>失败</th><th>重复</th><th>创建时间</th><th>操作</th>
+            </tr></thead>
+            <tbody id="task-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 识别结果页 -->
+      <div id="page-invoices" class="page">
+        <div class="card">
+          <h3>识别结果（点击单元格可编辑）
+            <button class="btn small" style="float:right" onclick="App.saveCurrentInvoice()">保存当前修改</button>
+            <button class="btn small success" style="float:right" onclick="App.reExport()">保存并重新导出 Excel</button>
+          </h3>
+          <div class="filters">
+            <select id="filter-status">
+              <option value="">全部状态</option>
+              <option value="pending">待确认</option>
+              <option value="confirmed">已确认</option>
+              <option value="needs_review">待人工处理</option>
+            </select>
+            <input id="filter-buyer" placeholder="按购买方筛选" />
+            <input id="filter-no" placeholder="按发票号码筛选" />
+            <button class="btn small" onclick="App.loadInvoices()">筛选</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr id="invoice-head"></tr></thead>
+              <tbody id="invoice-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 重复票据页 -->
+      <div id="page-duplicates" class="page">
+        <div class="card">
+          <h3>重复票据报告
+            <button class="btn small" style="float:right" onclick="App.downloadDuplicates()">下载重复报告 Excel</button>
+          </h3>
+          <table>
+            <thead><tr>
+              <th>发票号码</th><th>发票代码</th><th>类型</th><th>购买方</th>
+              <th>税号</th><th>保留文件</th><th>被跳过文件</th><th>处理时间</th>
+            </tr></thead>
+            <tbody id="dup-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 结果下载页 -->
+      <div id="page-download" class="page">
+        <div class="card">
+          <h3>结果下载
+            <button class="btn" onclick="App.downloadAll()">下载全部 Word 文档(zip)</button>
+          </h3>
+        </div>
+      </div>
+
+      <!-- 票据查重页 -->
+      <div id="page-ledger" class="page">
+        <div class="card">
+          <h3>票据查重（排查票据是否已使用）</h3>
+          <div class="filters">
+            <input id="ledger-no" placeholder="发票号码（必填）" onkeydown="App.ledgerKeydown(event)" />
+            <input id="ledger-code" placeholder="发票代码（可选）" onkeydown="App.ledgerKeydown(event)" />
+            <button class="btn" onclick="App.checkLedger()">查询</button>
+          </div>
+          <div id="ledger-result"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="/static/js/api.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+services:
+  invoice-app:
+    build: .
+    container_name: invoice-app
+    ports:
+      - "8000:8000"
+    environment:
+      - USE_AUTH=true
+      - APP_USERNAME=admin
+      - APP_PASSWORD=admin123
+      - OCR_ENGINE=rapidocr
+      - OCR_LANG=ch
+      - DATABASE_URL=sqlite:////app/data/app.db
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./output:/app/output
+      - ./failed:/app/failed
+      - ./models:/app/models
+    restart: unless-stopped
